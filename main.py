@@ -26,11 +26,11 @@ def log_processing():
                 'connector' = 'kafka',
                 'format' = 'avro-confluent',
                 'properties.bootstrap.servers' = '{os.getenv('BOOTSTRAP_SERVERS')}',
-                'properties.group.id' = 'pytflink_demo_joins_v1',
+                'properties.group.id' = 'pytflink_demo_joins_v{os.getenv('CONSUMER_GROUP_VERSION')}',
                 'properties.sasl.jaas.config' = 'org.apache.flink.kafka.shaded.org.apache.kafka.common.security.plain.PlainLoginModule required username="{os.getenv('KAFKA_USER')}" password="{os.getenv('KAFKA_PASSWORD')}";',
                 'properties.sasl.mechanism' = 'PLAIN',
                 'properties.security.protocol' = 'SASL_SSL',
-                'scan.startup.mode' = 'earliest-offset',
+                'scan.startup.mode' = 'latest-offset',
                 'topic' = '{os.getenv('TOPIC')}'
             )
             """
