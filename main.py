@@ -1,6 +1,8 @@
-import os
+import os, json
 from dotenv import load_dotenv
 from pyflink.table import TableEnvironment, EnvironmentSettings
+from pyflink.table import expressions as F
+from src.libs.connectors import Connectors 
 
 def get_jars_path():
     path = os.getcwd()
@@ -14,65 +16,37 @@ def get_jars_full_path() -> str:
   jars = [
     'flink-sql-connector-kafka-1.16.0.jar;',
     'flink-sql-avro-1.16.0.jar;',
-    'flink-sql-avro-confluent-registry-1.16.0.jar'
+    'flink-sql-avro-confluent-registry-1.16.0.jar;',
+    'flink-connector-jdbc-1.16.0.jar;',
+    'mysql-connector-java-5.1.9.jar'
   ]
   full_str = ''
   for jar in jars:
     full_str = f'{full_str}{jars_path}{jar}'
   return full_str
 
-def get_table_creation_string():
-    table_name = get_env('TOPIC', 'my_topic')
-    return f"""
-            CREATE TABLE {table_name} (
-                token VARCHAR
-            ) WITH (
-                'avro-confluent.basic-auth.credentials-source' = 'USER_INFO',
-                'avro-confluent.basic-auth.user-info' = '{os.getenv('SCHEMA_REGISTRY_API_KEY')}',
-                'avro-confluent.subject' = '{os.getenv('TOPIC')}-value',
-                'avro-confluent.url' = '{os.getenv('SCHEMA_REGISTRY_URL')}',
-                'connector' = 'kafka',
-                'format' = 'avro-confluent',
-                'properties.bootstrap.servers' = '{os.getenv('BOOTSTRAP_SERVERS')}',
-                'properties.group.id' = 'pytflink_demo_joins_v{os.getenv('CONSUMER_GROUP_VERSION')}',
-                'properties.sasl.jaas.config' = 'org.apache.flink.kafka.shaded.org.apache.kafka.common.security.plain.PlainLoginModule required username="{os.getenv('KAFKA_USER')}" password="{os.getenv('KAFKA_PASSWORD')}";',
-                'properties.sasl.mechanism' = 'PLAIN',
-                'properties.security.protocol' = 'SASL_SSL',
-                'scan.startup.mode' = 'latest-offset',
-                'topic' = '{table_name}'
-            )
-            """
-  
-
 def log_processing():
+    config = open('config.json')
+    connectors = Connectors(json.load(config))
+    mysql_source_ddls =  connectors.get_source_ddls('mysql')
+    kafka_source_ddls = connectors.get_source_ddls('kafka')
+
     env_settings = EnvironmentSettings.new_instance() \
       .with_built_in_catalog_name(get_env('CATALOG_NAME', 'my_catalog')) \
       .with_built_in_database_name(get_env('DATABASE_NAME', 'my_database')) \
       .in_streaming_mode().build()
-  
     t_env = TableEnvironment.create(env_settings)
-    
     t_env.get_config().set('pipeline.jars',get_jars_full_path()) \
-      .set("parallelism.default", get_env('PARALLELISM', '1'))
+      .set("parallelism.default", get_env('PARALLELISM', '6'))
 
-    source_ddl = get_table_creation_string()
-    t_env.execute_sql(source_ddl)
-    table = t_env.from_path(get_env('TOPIC', 'my_topic'))
-    table.execute().print()
+    for ddl in mysql_source_ddls:
+      t_env.execute_sql(ddl)
 
-  # sink_ddl = """
-  #         CREATE TABLE sink_table(
-  #             a VARCHAR
-  #         ) WITH (
-  #           'connector' = 'kafka',
-  #           'topic' = 'sink_topic',
-  #           'properties.bootstrap.servers' = 'kafka:9092',
-  #           'format' = 'json'
-  #         )
-  #         """
-  # t_env.execute_sql(sink_ddl)
-  # t_env.sql_query("SELECT a FROM source_table") \
-  #     .execute_insert("sink_table").wait()
+    for ddl in kafka_source_ddls:
+      t_env.execute_sql(ddl)
+
+    orders_table = t_env.from_path('models_enriched')
+    orders_table.execute().print()
 
 
 if __name__ == '__main__':

@@ -1,0 +1,30 @@
+{
+    "kafka_source":{
+        "<flink_table_name>":{
+            "fields": [
+                "`<field_name>` VARCHAR,",
+                "`<field_name>` BIGINT"
+            ],
+            "configs":{
+                "'avro-confluent.subject'": "'<subject_name>',",
+                "'properties.group.id'": "'<consumer_group_id>',",
+                "'properties.max.message.bytes'": "'3000000',",
+                "'scan.startup.mode'": "'<latest/earliest>-offset',",
+                "'topic'" : "'<topic>'"
+            }
+        }
+    },
+    "mysql_source": {
+        "<flink_table_name>": {
+            "fields": [
+                "<field_name> BIGINT,",
+                "<field_name> VARCHAR"
+            ],
+            "configs": {
+                "'table-name'": "'<table_name>'"
+            },
+            "database": "<database_name>"
+        }
+    }
+    
+}
