@@ -28,8 +28,9 @@ def get_jars_full_path() -> str:
 def log_processing():
     config = open('config.json')
     connectors = Connectors(json.load(config))
-    mysql_source_ddls =  connectors.get_source_ddls('mysql')
-    kafka_source_ddls = connectors.get_source_ddls('kafka')
+    mysql_source_ddls =  connectors.get_connector_config('mysql_source')
+    kafka_source_ddls = connectors.get_connector_config('kafka_source')
+    kafka_sink_ddls = connectors.get_connector_config('kafka_sink')
 
     env_settings = EnvironmentSettings.new_instance() \
       .with_built_in_catalog_name(get_env('CATALOG_NAME', 'my_catalog')) \
@@ -45,9 +46,8 @@ def log_processing():
     for ddl in kafka_source_ddls:
       t_env.execute_sql(ddl)
 
-    orders_table = t_env.from_path('models_enriched')
-    orders_table.execute().print()
-
+    for ddl in kafka_sink_ddls:
+      t_env.execute_sql(ddl)
 
 if __name__ == '__main__':
     load_dotenv()

@@ -9,19 +9,20 @@ class Connectors:
         self.mysql_config = MySQLConfigs()
         self.connector_ctx = {
             'kafka_source': self.kafka_config.get_kafka_source_default_config,
-            'mysql_source': self.mysql_config.get_mysql_source_default_config
+            'mysql_source': self.mysql_config.get_mysql_source_default_config,
+            'kafka_sink': self.kafka_config.get_kafka_sink_default_config
         }
 
-    def get_source_ddls(self, source:str) -> list[dict] :
+    def get_connector_config(self, connector_name:str) -> list[dict] :
         ddls = []
-        source_config = self.config.get(f'{source}_source')
-        for table in source_config:
-            table_config = source_config.get(table)
+        connector_config = self.config.get(f'{connector_name}')
+        for table in connector_config:
+            table_config = connector_config.get(table)
             fields_string = self.get_connector_fields(
                 table_config.get('fields'), table
             )
-            connector_config_string = self.get_connector_configs(
-                table_config, source
+            connector_config_string = self.get_technical_connector_spec(
+                table_config, connector_name
             )
             ddls.append(fields_string+connector_config_string)
         return ddls
@@ -32,11 +33,11 @@ class Connectors:
             fields_string = fields_string + field
         return f"CREATE TABLE {table_name} ( {fields_string} ) "
 
-    def get_connector_configs(self, table_configs: dict, source: str) -> str:
+    def get_technical_connector_spec(self, table_configs: dict, source: str) -> str:
         config_str = ''
         table_config = table_configs.get('configs')
         database_name = table_configs.get('database')
-        default_config = self.connector_ctx.get(f'{source}_source')()
+        default_config = self.connector_ctx.get(f'{source}')()
         if database_name:
             config_str = config_str + self.mysql_config.get_mysql_connection_str(database_name)
         for key in default_config:
